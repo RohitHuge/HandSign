@@ -52,10 +52,19 @@ export default function VideoAnalysisPanel({ isPlaying, onTimeUpdate, timestampM
 
     const video = videoRef.current;
     const canvas = canvasRef.current;
+    
+    // Prevent MediaPipe from crashing if video is not fully loaded or has 0 dimensions
+    if (video.readyState < 2 || video.videoWidth === 0 || video.videoHeight === 0) {
+      if (isPlaying && !video.paused) {
+        animationRef.current = requestAnimationFrame(predictWebcam);
+      }
+      return;
+    }
+
     const ctx = canvas.getContext('2d');
 
     // Ensure canvas dimensions match video
-    if (canvas.width !== video.clientWidth) {
+    if (canvas.width !== video.clientWidth || canvas.height !== video.clientHeight) {
       canvas.width = video.clientWidth;
       canvas.height = video.clientHeight;
     }
@@ -64,50 +73,55 @@ export default function VideoAnalysisPanel({ isPlaying, onTimeUpdate, timestampM
     if (lastVideoTimeRef.current !== video.currentTime) {
       lastVideoTimeRef.current = video.currentTime;
 
-      const results = handLandmarker.detectForVideo(video, startTimeMs);
+      try {
+        const results = handLandmarker.detectForVideo(video, startTimeMs);
 
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Draw futuristic nodes and lines
-      if (results.landmarks) {
-        for (const landmarks of results.landmarks) {
-          // Draw connections
-          ctx.strokeStyle = 'rgba(0, 240, 255, 0.5)';
-          ctx.lineWidth = 2;
-          ctx.shadowBlur = 10;
-          ctx.shadowColor = '#00f0ff';
-          
-          const HAND_CONNECTIONS = [
-            [0, 1], [1, 2], [2, 3], [3, 4],
-            [0, 5], [5, 6], [6, 7], [7, 8],
-            [5, 9], [9, 10], [10, 11], [11, 12],
-            [9, 13], [13, 14], [14, 15], [15, 16],
-            [13, 17], [0, 17], [17, 18], [18, 19], [19, 20]
-          ];
-
-          for (const connection of HAND_CONNECTIONS) {
-            const start = landmarks[connection[0]];
-            const end = landmarks[connection[1]];
+        // Draw futuristic nodes and lines
+        if (results.landmarks) {
+          for (const landmarks of results.landmarks) {
+            // Draw connections
+            ctx.strokeStyle = 'rgba(0, 240, 255, 0.5)';
+            ctx.lineWidth = 2;
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#00f0ff';
             
-            ctx.beginPath();
-            ctx.moveTo(start.x * canvas.width, start.y * canvas.height);
-            ctx.lineTo(end.x * canvas.width, end.y * canvas.height);
-            ctx.stroke();
-          }
+            const HAND_CONNECTIONS = [
+              [0, 1], [1, 2], [2, 3], [3, 4],
+              [0, 5], [5, 6], [6, 7], [7, 8],
+              [5, 9], [9, 10], [10, 11], [11, 12],
+              [9, 13], [13, 14], [14, 15], [15, 16],
+              [13, 17], [0, 17], [17, 18], [18, 19], [19, 20]
+            ];
 
-          // Draw nodes
-          ctx.strokeStyle = '#00f0ff';
-          ctx.fillStyle = '#b026ff';
-          ctx.lineWidth = 2;
+            for (const connection of HAND_CONNECTIONS) {
+              const start = landmarks[connection[0]];
+              const end = landmarks[connection[1]];
+              
+              ctx.beginPath();
+              ctx.moveTo(start.x * canvas.width, start.y * canvas.height);
+              ctx.lineTo(end.x * canvas.width, end.y * canvas.height);
+              ctx.stroke();
+            }
 
-          for (const point of landmarks) {
-            ctx.beginPath();
-            ctx.arc(point.x * canvas.width, point.y * canvas.height, 4, 0, 2 * Math.PI);
-            ctx.fill();
-            ctx.stroke();
+            // Draw nodes
+            ctx.strokeStyle = '#00f0ff';
+            ctx.fillStyle = '#b026ff';
+            ctx.lineWidth = 2;
+
+            for (const point of landmarks) {
+              ctx.beginPath();
+              ctx.arc(point.x * canvas.width, point.y * canvas.height, 4, 0, 2 * Math.PI);
+              ctx.fill();
+              ctx.stroke();
+            }
+            ctx.shadowBlur = 0;
           }
-          ctx.shadowBlur = 0;
         }
+      } catch (err) {
+        // Ignore MediaPipe errors if video is interrupted
+        console.warn("MediaPipe processing interrupted:", err);
       }
     }
 
