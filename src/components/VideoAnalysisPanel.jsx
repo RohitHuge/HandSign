@@ -158,7 +158,7 @@ export default function VideoAnalysisPanel({ isPlaying, onTimeUpdate, timestampM
         playsInline
       >
         {/* Placeholder video or user can provide one */}
-        <source src="../../HandSign.mp4" type="video/mp4" />
+        <source src="https://ik.imagekit.io/projecttestseries/questions_images/HandSign.mp4" type="video/mp4" />
       </video>
 
       {/* MediaPipe Canvas */}
